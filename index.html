@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#4f6ef7">
+<title>课后测答题</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Noto Sans SC", sans-serif;
+    background: #eef1f8; color: #2b2f3a;
+    display: flex; justify-content: center;
+  }
+  #app { width: 100%; max-width: 560px; min-height: 100%; display: flex; flex-direction: column; }
+  .screen { display: none; flex: 1; flex-direction: column; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .screen.active { display: flex; }
+
+  /* ===== 首页 ===== */
+  .hero { text-align: center; padding: 28px 0 18px; }
+  .hero h1 { font-size: 26px; color: #3746c9; }
+  .hero p { margin-top: 8px; color: #7a8199; font-size: 14px; }
+  .card {
+    background: #fff; border-radius: 16px; padding: 16px;
+    box-shadow: 0 2px 10px rgba(60,72,120,.08); margin-bottom: 14px;
+  }
+  .card h2 { font-size: 15px; color: #6b7280; margin-bottom: 10px; font-weight: 600; }
+  .choice-group { display: flex; flex-wrap: wrap; gap: 10px; }
+  .chip {
+    flex: 1 1 calc(50% - 5px); min-height: 52px; border: 2px solid #dfe4f3; border-radius: 12px;
+    background: #fff; font-size: 16px; color: #3a4160; padding: 10px 8px; cursor: pointer;
+    transition: all .15s; line-height: 1.3;
+  }
+  .chip small { display: block; font-size: 12px; color: #9aa1b8; margin-top: 2px; }
+  .chip.sel { border-color: #4f6ef7; background: #eef2ff; color: #3746c9; font-weight: 600; }
+  .chip.sel small { color: #7c8ae0; }
+  #startBtn {
+    width: 100%; min-height: 54px; border: none; border-radius: 14px;
+    background: linear-gradient(135deg, #4f6ef7, #6a5cf0); color: #fff;
+    font-size: 18px; font-weight: 600; cursor: pointer; margin-top: 4px;
+    box-shadow: 0 6px 16px rgba(79,110,247,.35);
+  }
+  #startBtn:active { transform: scale(.98); }
+  #startBtn:disabled { opacity: .5; box-shadow: none; }
+
+  /* ===== 答题页 ===== */
+  .topbar { display: flex; align-items: center; gap: 10px; margin-bottom: 14px; }
+  .backBtn {
+    border: none; background: #fff; color: #6b7280; border-radius: 10px;
+    min-width: 44px; min-height: 40px; font-size: 20px; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(60,72,120,.12);
+  }
+  .progress-wrap { flex: 1; }
+  .progress-text { font-size: 13px; color: #7a8199; margin-bottom: 4px; display: flex; justify-content: space-between; }
+  .progress-bar { height: 8px; background: #dde2f0; border-radius: 4px; overflow: hidden; }
+  .progress-fill { height: 100%; width: 0; background: linear-gradient(90deg,#4f6ef7,#6a5cf0); border-radius: 4px; transition: width .25s; }
+  .score-live { font-size: 14px; color: #3746c9; font-weight: 600; white-space: nowrap; }
+
+  .qcard { background: #fff; border-radius: 16px; padding: 22px 16px; text-align: center; box-shadow: 0 2px 10px rgba(60,72,120,.08); }
+  .qtag { font-size: 13px; color: #9aa1b8; }
+  .qprompt { margin-top: 10px; font-size: 24px; font-weight: 700; line-height: 1.45; white-space: pre-line; word-break: break-word; }
+  .qprompt.en { letter-spacing: .2px; }
+
+  .options { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
+  .opt {
+    border: 2px solid #dfe4f3; background: #fff; border-radius: 14px;
+    min-height: 56px; padding: 12px 14px; font-size: 16px; color: #3a4160;
+    cursor: pointer; text-align: left; line-height: 1.45; white-space: pre-line;
+    transition: border-color .15s, background .15s; word-break: break-word;
+  }
+  .opt.correct { border-color: #22a05a; background: #e8f7ee; color: #177a45; font-weight: 600; }
+  .opt.wrong { border-color: #e05656; background: #fdeeee; color: #b23a3a; }
+  .opt.dim { opacity: .55; }
+  .opt:disabled { cursor: default; }
+  .feedback { text-align: center; font-size: 14px; min-height: 20px; margin-top: 12px; color: #9aa1b8; }
+
+  /* ===== 结果页 ===== */
+  .result-hero { text-align: center; padding: 30px 0 20px; }
+  .score-circle {
+    width: 150px; height: 150px; margin: 0 auto; border-radius: 50%;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    background: #fff; box-shadow: 0 4px 18px rgba(60,72,120,.12);
+  }
+  .score-num { font-size: 44px; font-weight: 800; color: #3746c9; }
+  .score-sub { font-size: 13px; color: #9aa1b8; margin-top: 2px; }
+  .result-msg { margin-top: 14px; font-size: 16px; color: #4b5268; }
+  .wrong-title { margin: 6px 0 10px; font-size: 15px; color: #6b7280; font-weight: 600; }
+  .wrong-item {
+    background: #fff; border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+    box-shadow: 0 1px 5px rgba(60,72,120,.08); font-size: 14px; line-height: 1.55;
+  }
+  .wrong-item .wq { font-weight: 700; color: #2b2f3a; white-space: pre-line; }
+  .wrong-item .wa { color: #b23a3a; margin-top: 3px; }
+  .wrong-item .wc { color: #177a45; margin-top: 2px; white-space: pre-line; }
+  .btn-row { display: flex; gap: 10px; margin-top: 8px; }
+  .btn {
+    flex: 1; min-height: 50px; border: none; border-radius: 13px; font-size: 16px;
+    font-weight: 600; cursor: pointer;
+  }
+  .btn-primary { background: linear-gradient(135deg,#4f6ef7,#6a5cf0); color: #fff; box-shadow: 0 5px 14px rgba(79,110,247,.3); }
+  .btn-ghost { background: #fff; color: #4b5268; border: 2px solid #dfe4f3; }
+  .btn:active { transform: scale(.98); }
+  .btn[disabled] { opacity: .45; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <!-- 首页 -->
+  <section id="home" class="screen active">
+    <div class="hero">
+      <h1>课后测答题</h1>
+      <p>共 3 套补测 · 每套 50 词 · 英汉双向练习</p>
+    </div>
+    <div class="card">
+      <h2>选择测试</h2>
+      <div class="choice-group" id="testGroup"></div>
+    </div>
+    <div class="card">
+      <h2>选择模式</h2>
+      <div class="choice-group" id="modeGroup"></div>
+    </div>
+    <button id="startBtn" disabled>开始答题</button>
+  </section>
+
+  <!-- 答题 -->
+  <section id="quiz" class="screen">
+    <div class="topbar">
+      <button class="backBtn" id="quitBtn" title="退出">←</button>
+      <div class="progress-wrap">
+        <div class="progress-text"><span id="qCount">1 / 50</span><span class="score-live" id="liveScore">得分 0</span></div>
+        <div class="progress-bar"><div class="progress-fill" id="progFill"></div></div>
+      </div>
+    </div>
+    <div class="qcard">
+      <div class="qtag" id="qTag"></div>
+      <div class="qprompt" id="qPrompt"></div>
+    </div>
+    <div class="options" id="optBox"></div>
+    <div class="feedback" id="fb"></div>
+  </section>
+
+  <!-- 结果 -->
+  <section id="result" class="screen">
+    <div class="result-hero">
+      <div class="score-circle">
+        <div class="score-num" id="finalScore">0</div>
+        <div class="score-sub" id="finalSub"></div>
+      </div>
+      <div class="result-msg" id="resultMsg"></div>
+    </div>
+    <div id="wrongWrap" class="hidden">
+      <div class="wrong-title">错题回顾（共 <span id="wrongCount">0</span> 题）</div>
+      <div id="wrongList"></div>
+      <button class="btn btn-ghost" id="redoWrongBtn" style="width:100%">只练错题</button>
+    </div>
+    <div class="btn-row" style="margin-top:14px">
+      <button class="btn btn-ghost" id="homeBtn">返回主页</button>
+      <button class="btn btn-primary" id="againBtn">再来一次</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const DATA = {"t1":{"title":"课后测1补测","items":[{"en":"fashion","zh":"v.制定 n. 时尚"},{"en":"in that","zh":"因为"},{"en":"economics","zh":"n.经济学；经济情况"},{"en":"physical","zh":"adj.物理的；身体的；实体的"},{"en":"doctor","zh":"v.编造，伪造，捏造\nn. 医生，博士"},{"en":"physical stores","zh":"实体店"},{"en":"linguistics","zh":"n.语言学"},{"en":"biology","zh":"n.生物学"},{"en":"psychology","zh":"n.心理学"},{"en":"capital","zh":"n.首都；资本；大写字母"},{"en":"optimistic","zh":"adj.乐观的"},{"en":"optimist","zh":"n.乐观主义者"},{"en":"Confucianism","zh":"n.儒家思想"},{"en":"Confucius","zh":"n.孔子"},{"en":"criticism","zh":"n.批评，批判；评论"},{"en":"journalism","zh":"n.新闻业"},{"en":"novel","zh":"n.小说 adj.新颖的"},{"en":"novelty","zh":"n.新颖"},{"en":"science fiction","zh":"科幻小说"},{"en":"anthropologist","zh":"n.人类学家"},{"en":"archaeologist","zh":"n.考古学家"},{"en":"journalist","zh":"n.记者"},{"en":"alarmist","zh":"n.耸人听闻者"},{"en":"endless","zh":"adj.无穷尽的"},{"en":"aimless","zh":"adj.漫无目的的"},{"en":"fruitless","zh":"adj.没有结果的"},{"en":"groundless","zh":"adj.无理由的，无根据的"},{"en":"reckless","zh":"adj.鲁莽的"},{"en":"ruthless","zh":"adj.冷酷的"},{"en":"kinship","zh":"n.亲戚关系"},{"en":"relative","zh":"n.亲属"},{"en":"membership","zh":"n.会员身份"},{"en":"citizenship","zh":"n.公民身份"},{"en":"ownership","zh":"n.所有权；所有制；拥有（量）"},{"en":"hardly","zh":"adv.几乎不"},{"en":"increasingly significant","zh":"越来越重要"},{"en":"largely","zh":"adv.在很大程度上"},{"en":"overwhelmingly","zh":"adv.压倒性地"},{"en":"friendly","zh":"adj.友好的"},{"en":"scholarly","zh":"adj.学术的；博学的"},{"en":"scholarly journals","zh":"学术期刊"},{"en":"well-informed","zh":"adj.博学的"},{"en":"a likely spouse","zh":"可能的配偶"},{"en":"be likely to do sth","zh":"可能会做"},{"en":"silly","zh":"adj.愚蠢的"},{"en":"broaden","zh":"v.拓宽；增长（见识/眼界）"},{"en":"broaden one’s horizons","zh":"开阔眼界"},{"en":"widen the gap","zh":"拉开差距"},{"en":"generation","zh":"n.产生；一代人；代"},{"en":"the generation gap","zh":"代沟"}]},"t2":{"title":"课后测2补测","items":[{"en":"generation","zh":"n.产生；一代人；代"},{"en":"the generation gap","zh":"代沟"},{"en":"the generation of\nelectricity","zh":"发电"},{"en":"four generations under\none roof","zh":"四世同堂"},{"en":"the fifth generation","zh":"第五代（5G）"},{"en":"deepen","zh":"v.加深"},{"en":"deepen one’s \nunderstanding","zh":"加深理解"},{"en":"appreciate","zh":"v.欣赏；感激；理解"},{"en":"threaten","zh":"v.威胁；可能"},{"en":"threaten to do sth","zh":"威胁/可能会做某事"},{"en":"wooden","zh":"adj.木质的；呆板的"},{"en":"mechanical","zh":"adj.机械的；呆板的"},{"en":"golden","zh":"adj.金质的；金色的；黄金般的"},{"en":"a golden opportunity","zh":"黄金时机"},{"en":"create","zh":"v.创造；创作；引起"},{"en":"innovate","zh":"v.创新，革新"},{"en":"innovation","zh":"n.创新，革新"},{"en":"innovative","zh":"adj.创新的，革新的"},{"en":"innovator","zh":"n.创新者，革新者"},{"en":"mirror","zh":"n.镜子 v.反映"},{"en":"advocate","zh":"n.提倡者，倡导者 v.提倡"},{"en":"public-health advocates","zh":"公共健康/卫生倡导者"},{"en":"candidate","zh":"n.候选人；考生"},{"en":"passionate","zh":"adj.富有激情的"},{"en":"considerate","zh":"adj.体贴的，周到的"},{"en":"considerable","zh":"adj.相当的"},{"en":"agent","zh":"n.代理人，经纪人；特工；动因"},{"en":"real estate agents","zh":"房地产代理人"},{"en":"agency","zh":"n.代理机构；政府机构"},{"en":"travel agencies","zh":"旅行社"},{"en":"respondent","zh":"n.受访者 adj.响应的；回答的；被告的；符合的"},{"en":"confident","zh":"adj.有信心的"},{"en":"indifferent","zh":"adj.漠不关心的"},{"en":"sufficient","zh":"adj.足够的"},{"en":"inherent","zh":"adj.内在的，固有的，与生俱来的"},{"en":"meaningful","zh":"adj.有意义的"},{"en":"mean","zh":"v.意味着；打算\nadj.吝啬的；平均的"},{"en":"mean-spirited","zh":"adj.狭隘的"},{"en":"the mean value","zh":"平均值"},{"en":"powerful","zh":"adj.强大的"},{"en":"an international power","zh":"世界强国"},{"en":"a handful of","zh":"少数"},{"en":"a train of","zh":"许多"},{"en":"spoonful","zh":"n.一勺（的量）"},{"en":"prewar","zh":"adj.战前的"},{"en":"wage a war","zh":"发动战争"},{"en":"average wages","zh":"平均工资"},{"en":"average","zh":"adj.平均的；普通的 n.平均值；普通水准 v.平均是"},{"en":"prefer A to B","zh":"相比B，更喜欢A"},{"en":"prefer","zh":"v.偏爱"}]},"t3":{"title":"课后测3补测","items":[{"en":"prefer","zh":"v.偏爱"},{"en":"prefer A to B","zh":"相比B，更喜欢A"},{"en":"preferential","zh":"adj.优先的，优待的，优惠的"},{"en":"predict","zh":"v.预言"},{"en":"predictable","zh":"adj.可预言的"},{"en":"predictability","zh":"n.可预测性"},{"en":"precise","zh":"adj.精确的；恰恰的"},{"en":"industry","zh":"n.工业；产业，行业；勤奋"},{"en":"the publish industry","zh":"出版行业"},{"en":"industrial","zh":"adj.工业的；产业的，行业的"},{"en":"industrious","zh":"adj.勤奋的"},{"en":"diligent","zh":"adj.勤奋的"},{"en":"individualization","zh":"n.工业化"},{"en":"president","zh":"n.校长；董事长；行长；总统；主席"},{"en":"preside over","zh":"主持…"},{"en":"prejudice","zh":"n.偏见 v.使有偏见；损害，侵害"},{"en":"gender prejudice","zh":"性别偏见"},{"en":"stereotype","zh":"n.偏见 v.对…有成见；使刻板"},{"en":"precede","zh":"v.走在…之前；先于；优于"},{"en":"unprecedented","zh":"adj.史无前例的"},{"en":"previous","zh":"adj.先前的，之前的"},{"en":"trivial","zh":"adj.琐碎的，无关紧要的"},{"en":"post","zh":"n.邮政，邮递，邮寄；岗位；帖子 v.邮寄；张贴；发布"},{"en":"shield…from…","zh":"保护…免于…"},{"en":"safeguard…against…","zh":"保护…免于…"},{"en":"professor","zh":"n.教授；（大学）讲师"},{"en":"prospect","zh":"n.景色，景象；前景；可能性 v.勘探"},{"en":"career prospect","zh":"职业前景"},{"en":"admire scenery","zh":"欣赏风景"},{"en":"protest","zh":"n./v.抗议"},{"en":"process","zh":"n.过程 v.处理"},{"en":"the globalization process","zh":"全球化进程"},{"en":"microprocessor","zh":"n.微型处理器"},{"en":"promote","zh":"v.推动；推广；晋升"},{"en":"a school of","zh":"一群…"},{"en":"product","zh":"n.产品；产物"},{"en":"programming languages","zh":"编程语言"},{"en":"social media","zh":"社交媒体"},{"en":"social phobia","zh":"社恐"},{"en":"foresee","zh":"v.预见"},{"en":"forefather","zh":"n.祖先"},{"en":"look forward to","zh":"期待"},{"en":"weather forecast","zh":"天气预报"},{"en":"weather","zh":"n.天气 v.平安渡过（艰难时刻）"},{"en":"overhead","zh":"adv.在头上 n.日常开支"},{"en":"overhaul","zh":"n.彻底检修，改革"},{"en":"upmarket","zh":"adj.高档的"},{"en":"uphold","zh":"v.维护；维持（原判）"},{"en":"subway","zh":"n.地铁"},{"en":"substitute","zh":"n.替代，代替 v.替代者/物"}]}};
+
+/* ---------- 状态 ---------- */
+let selTest = null, selMode = null;
+let quiz = [], qi = 0, score = 0, wrongs = [], locked = false;
+let redoMode = false;
+
+const $ = id => document.getElementById(id);
+
+/* ---------- 首页 ---------- */
+const TEST_KEYS = Object.keys(DATA);
+const TEST_NAMES = { t1: "课后测试1补测", t2: "课后测试2补测", t3: "课后测试3补测" };
+const MODES = [
+  { key: "e2z", name: "看英文 → 选中文", desc: "英译汉" },
+  { key: "z2e", name: "看中文 → 选英文", desc: "汉译英" }
+];
+
+function renderHome() {
+  const tg = $("testGroup"); tg.innerHTML = "";
+  TEST_KEYS.forEach(k => {
+    const b = document.createElement("button");
+    b.className = "chip" + (selTest === k ? " sel" : "");
+    b.innerHTML = TEST_NAMES[k].replace(/(课后测试\d)/, "$1") + "<small>" + DATA[k].items.length + " 词</small>";
+    b.onclick = () => { selTest = k; renderHome(); };
+    tg.appendChild(b);
+  });
+  const mg = $("modeGroup"); mg.innerHTML = "";
+  MODES.forEach(m => {
+    const b = document.createElement("button");
+    b.className = "chip" + (selMode === m.key ? " sel" : "");
+    b.innerHTML = m.name + "<small>" + m.desc + "</small>";
+    b.onclick = () => { selMode = m.key; renderHome(); };
+    mg.appendChild(b);
+  });
+  $("startBtn").disabled = !(selTest && selMode);
+}
+$("startBtn").onclick = () => startQuiz(DATA[selTest].items, TEST_NAMES[selTest]);
+$("quitBtn").onclick = () => { if (confirm("确定退出本次答题？")) showScreen("home"); };
+
+/* ---------- 工具 ---------- */
+function shuffle(a) { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+function showScreen(name) {
+  document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+  $(name).classList.add("active");
+  window.scrollTo(0, 0);
+}
+
+/* ---------- 出题 ---------- */
+function buildQuestions(items) {
+  return shuffle(items).map(item => {
+    const promptText = selMode === "e2z" ? item.en : item.zh;
+    const ansText    = selMode === "e2z" ? item.zh : item.en;
+    const pool = shuffle(items.filter(x => x !== item)).map(x => selMode === "e2z" ? x.zh : x.en);
+    const opts = [];
+    for (const p of pool) {
+      if (opts.length === 3) break;
+      if (p !== ansText && !opts.includes(p)) opts.push(p);
+    }
+    return { prompt: promptText, answer: ansText, options: shuffle([ansText, ...opts]), item };
+  });
+}
+
+function startQuiz(items, title, isRedo) {
+  quiz = buildQuestions(items);
+  qi = 0; score = 0; wrongs = []; redoMode = !!isRedo;
+  $("qTag").textContent = title + (isRedo ? " · 错题重练" : "") + " · " + (selMode === "e2z" ? "英译汉" : "汉译英");
+  showScreen("quiz");
+  renderQ();
+}
+
+function renderQ() {
+  locked = false;
+  const q = quiz[qi];
+  $("qCount").textContent = (qi + 1) + " / " + quiz.length;
+  $("liveScore").textContent = "得分 " + score;
+  $("progFill").style.width = (qi / quiz.length * 100) + "%";
+  $("fb").textContent = "";
+  const p = $("qPrompt");
+  p.textContent = q.prompt;
+  p.className = "qprompt" + (selMode === "e2z" ? " en" : "");
+  const box = $("optBox"); box.innerHTML = "";
+  q.options.forEach((opt, idx) => {
+    const b = document.createElement("button");
+    b.className = "opt";
+    b.textContent = opt;
+    b.onclick = () => pick(b, opt);
+    box.appendChild(b);
+  });
+}
+
+function pick(btn, opt) {
+  if (locked) return;
+  locked = true;
+  const q = quiz[qi];
+  const buttons = [...$("optBox").children];
+  buttons.forEach(b => { b.disabled = true; if (b.textContent === q.answer) b.classList.add("correct"); });
+  if (opt === q.answer) {
+    score++;
+    $("fb").textContent = "✓ 回答正确";
+  } else {
+    q.picked = opt;
+    btn.classList.add("wrong");
+    wrongs.push(q);
+    $("fb").textContent = "✗ 正确答案已标绿";
+  }
+  buttons.forEach(b => { if (b !== btn && b.textContent !== q.answer) b.classList.add("dim"); });
+  $("liveScore").textContent = "得分 " + score;
+  setTimeout(() => {
+    qi++;
+    if (qi < quiz.length) renderQ(); else showResult();
+  }, 850);
+}
+
+/* ---------- 结果 ---------- */
+function showResult() {
+  $("progFill").style.width = "100%";
+  const total = quiz.length;
+  const pct = Math.round(score / total * 100);
+  $("finalScore").textContent = score;
+  $("finalSub").textContent = "满分 " + total;
+  $("resultMsg").textContent = pct === 100 ? "🎉 全部正确，太棒了！" :
+    pct >= 80 ? "👍 成绩不错，继续保持！" :
+    pct >= 60 ? "💪 及格啦，再练练错题吧。" : "📖 多背几遍词表，再来挑战！";
+  const wl = $("wrongList"); wl.innerHTML = "";
+  (redoMode ? wrongs : wrongs).forEach(q => {
+    const d = document.createElement("div");
+    d.className = "wrong-item";
+    const wq = document.createElement("div"); wq.className = "wq"; wq.textContent = q.prompt;
+    const wa = document.createElement("div"); wa.className = "wa"; wa.textContent = "你的答案：" + (q.picked || "（未答）");
+    const wc = document.createElement("div"); wc.className = "wc"; wc.textContent = "正确答案：" + q.answer;
+    d.append(wq, wa, wc); wl.appendChild(d);
+  });
+  $("wrongCount").textContent = wrongs.length;
+  $("wrongWrap").classList.toggle("hidden", wrongs.length === 0);
+  $("redoWrongBtn").disabled = wrongs.length === 0;
+  showScreen("result");
+}
+
+$("againBtn").onclick = () => startQuiz(DATA[selTest].items, TEST_NAMES[selTest]);
+$("homeBtn").onclick = () => { renderHome(); showScreen("home"); };
+$("redoWrongBtn").onclick = () => {
+  const items = wrongs.map(q => q.item);
+  startQuiz(items, TEST_NAMES[selTest], true);
+};
+
+renderHome();
+</script>
+</body>
+</html>
